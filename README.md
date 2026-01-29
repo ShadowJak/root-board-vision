@@ -82,15 +82,24 @@ python train.py
 This will train for 100 epochs. When done, YOLO will create a `runs/` folder in your project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
 
 ```
-train.py
-runs/
-  detect/
-    train/
-      weights/
-        best.onnx  ← Your trained model is here
+project-folder/
+├── train.py
+├── requirements.txt
+├── train/
+│   ├── images/
+│   └── labels/
+├── valid/
+│   ├── images/
+│   └── labels/
+└── runs/
+    └── detect/
+        └── train/
+            └── weights/
+                ├── best.pt
+                └── best.onnx  ← Copy this file
 ```
 
-The path to copy is: `runs/detect/train/weights/best.onnx`
+The path to copy is: `runs\detect\train\weights\best.onnx`
 
 ## Step 4: Deploy to Raspberry Pi
 

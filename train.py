@@ -2,8 +2,15 @@
 Training script. Just run it.
 """
 
+import sys
 from ultralytics import YOLO
 from pathlib import Path
+
+# Check Python version
+if sys.version_info < (3, 8):
+    print("Error: Python 3.8 or higher is required.")
+    print(f"You have Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    sys.exit(1)
 
 print("ROOT Board Vision - Training")
 print("=" * 50)
@@ -17,24 +24,25 @@ if not Path("train").exists() or not Path("train/images").exists():
     print("  train/labels/  - training labels")
     print("  valid/images/  - validation images")
     print("  valid/labels/  - validation labels")
-    exit()
+    sys.exit(1)
 
 if not Path("train/labels").exists():
     print("Error: 'train/labels' folder not found.")
     print("Export your Roboflow dataset and extract it to this folder.")
-    exit()
+    sys.exit(1)
 
 if not Path("valid").exists() or not Path("valid/images").exists():
     print("Error: 'valid/images' folder not found.")
     print("Export your Roboflow dataset and extract it to this folder.")
-    exit()
+    sys.exit(1)
 
 if not Path("valid/labels").exists():
     print("Error: 'valid/labels' folder not found.")
     print("Export your Roboflow dataset and extract it to this folder.")
-    exit()
+    sys.exit(1)
 
-# Create dataset config    dataset_config = """
+# Create dataset config
+dataset_config = """
 path: .
 train: train/images
 val: valid/images
@@ -69,7 +77,7 @@ model.train(
     epochs=100,
     imgsz=640,
     patience=20,
-    device='',  # Auto-detect GPU or use CPU
+    # device omitted so ultralytics auto-detects CUDA/CPU
 )
 
 print("\n" + "=" * 50)
