@@ -25,7 +25,8 @@ The `(venv)` prefix in your prompt indicates the environment is active.
 
 ## Step 2: Collect and Label Training Data (3-4 hours)
 
-1. **Record video** of your ROOT board with your phone
+1. **Record video** of your ROOT board
+   - **Use 16:9 aspect ratio** (1920x1080 or 1280x720) to match training resolution
    - Move pieces around during recording
    - Capture different board states
    - **Vary everything**: lighting, angles, camera height, board rotation
@@ -71,7 +72,7 @@ The `(venv)` prefix in your prompt indicates the environment is active.
        labels/
      ```
 
-## Step 3: Train (2-4 hours with GPU, 12+ hours with CPU)
+## Step 3: Train (4-6 hours with RTX 4080 Super, 12+ hours with CPU)
 
 Make sure your virtual environment is activated, then:
 
@@ -79,7 +80,7 @@ Make sure your virtual environment is activated, then:
 python train.py
 ```
 
-This will train for 100 epochs. When done, YOLO will create a `runs/` folder in your project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
+This will train for 100 epochs at 1280x720 resolution (16:9 aspect ratio matching your camera). When done, YOLO will create a `runs/` folder in your project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
 
 ```
 project-folder/

@@ -1,5 +1,5 @@
 """
-Training script. Just run it.
+Training script. Run this file.
 """
 
 import sys
@@ -67,15 +67,15 @@ model = YOLO("yolov8m.pt")
 
 print("\nStarting training...")
 print("This will take several hours. Training time depends on:")
-print("  - GPU: 2-4 hours")
-print("  - CPU: 12+ hours")
+print("  - GPU: 4-6 hours (1280x720 resolution)")
+print("  - CPU: 24+ hours")
 print()
 
 # Train
 model.train(
     data="dataset.yaml",
     epochs=100,
-    imgsz=640,
+    imgsz=(1280, 720),  # 16:9 aspect ratio - matches camera native resolution
     patience=20,
     # device omitted so ultralytics auto-detects CUDA/CPU
 )
