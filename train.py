@@ -47,16 +47,17 @@ path: .
 train: train/images
 val: valid/images
 
-nc: 8
+nc: 9
 names:
-  0: clearing
-  1: marquise_warrior
-  2: marquise_building
-  3: eyrie_warrior
-  4: eyrie_building
-  5: woodland_warrior
-  6: woodland_building
-  7: vagabond
+  0: Alliance Building
+  1: Alliance Token
+  2: Alliance Warrior
+  3: Bird Building
+  4: Bird Warrior
+  5: Cat Building
+  6: Cat Token
+  7: Cat Warrior
+  8: Clearing
 """
 
 with open("dataset.yaml", "w") as f:
