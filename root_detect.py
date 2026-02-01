@@ -285,10 +285,9 @@ def main():
     )
     picam2.configure(config)
     picam2.start()
-    
-    # Initialize Hailo
+      # Initialize Hailo
     print("Loading Hailo model...")
-    model_path = "/home/shadowjak/models/best.hef"
+    model_path = "/home/shadowjak/models/root_board_vision.hef"
     
     try:
         with VDevice() as vdevice:
