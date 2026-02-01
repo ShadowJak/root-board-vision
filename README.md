@@ -15,6 +15,11 @@ Create a virtual environment and install packages:
 ```powershell
 python -m venv venv
 venv\Scripts\Activate.ps1
+
+# Install PyTorch with CUDA support (for GPU training)
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# Install other dependencies
 pip install -r requirements.txt
 ```
 
