@@ -148,12 +148,16 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
    hailomz compile --ckpt best.onnx --calib-path <path-to-calibration-images> --yaml <path-to-model-yaml> --hw-arch hailo8l --performance
    ```
    This creates a `.hef` file optimized for Hailo-8L hardware (Raspberry Pi AI HAT+).
+   
+   Note: The `--calib-path` should point to a directory with representative images for calibration, and `--yaml` should point to the model configuration file. Consult the Hailo Model Zoo documentation for specifics on your YOLO model version.
 
 5. **On your Raspberry Pi** - Organize files:
    ```bash
    mkdir -p /home/shadowjak/models
    mv best.hef /home/shadowjak/models/root_board_vision.hef
    ```
+   
+   Note: The path `/home/shadowjak/models` is hardcoded in `root_detect.py` (line 290). If your username is different, either update the path in `root_detect.py` or create a symlink: `sudo ln -s /home/<your-username> /home/shadowjak`
 
 6. **On your Raspberry Pi** - Run detection:
    ```bash
