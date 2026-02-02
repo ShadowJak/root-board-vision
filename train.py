@@ -30,7 +30,9 @@ def main():
     if not Path("train/labels").exists():
         print("Error: 'train/labels' folder not found.")
         print("Export your Roboflow dataset and extract it to this folder.")
-        sys.exit(1)    if not Path("valid").exists() or not Path("valid/images").exists():
+        sys.exit(1)    
+        
+    if not Path("valid").exists() or not Path("valid/images").exists():
         print("Error: 'valid/images' folder not found.")
         print("Export your Roboflow dataset and extract it to this folder.")
         sys.exit(1)
