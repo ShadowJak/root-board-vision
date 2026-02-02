@@ -129,7 +129,6 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
    
    ```powershell
    scp runs\detect\train\weights\best.onnx <username>@<hostname>:~/root-board-vision/
-   scp root_rule_calc.json <username>@<hostname>:~/root-board-vision/
    scp root_detect.py <username>@<hostname>:~/root-board-vision/
    ```
    
@@ -142,7 +141,7 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
    ```bash
    ls -lh
    ```
-   Expected output: `best.onnx`, `root_rule_calc.json`, `root_detect.py`
+   Expected output: `best.onnx`, `root_detect.py`
 
 4. **On your Raspberry Pi** - Convert ONNX to HEF:
    ```bash
@@ -153,13 +152,13 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
 
 5. **On your Raspberry Pi** - Organize files:
    ```bash
-   mkdir -p models
-   mv best.hef models/root_detector_h8.hef
+   mkdir -p ~/models
+   mv best.hef ~/models/root_board_vision.hef
    ```
 
 6. **On your Raspberry Pi** - Run detection:
    ```bash
-   rpicam-hello -t 0 --post-process-file root_rule_calc.json
+   python3 root_detect.py
    ```
 
 **Output:** Live camera feed with bounding boxes around detected clearings and pieces.
