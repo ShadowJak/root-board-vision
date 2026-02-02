@@ -71,10 +71,10 @@ names:
     print("This will take several hours. Training time depends on:")
     print("  - GPU: 4-6 hours (1280x720 resolution)")
     print("  - CPU: 24+ hours")
-    print()    # Train
+    print()
     results = model.train(
         data="dataset.yaml",
-        epochs=100,
+        epochs=1,
         imgsz=(1280, 720),  # 16:9 aspect ratio - matches camera native resolution
         patience=20,
         # device omitted so ultralytics auto-detects CUDA/CPU
