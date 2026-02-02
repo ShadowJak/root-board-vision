@@ -6,6 +6,7 @@ Run on Raspberry Pi to detect pieces and show clearing control
 
 import cv2
 import numpy as np
+import os
 from picamera2 import Picamera2
 from pyhailort import HEFModel, ConfigureParams, VDevice, FormatType
 import time
@@ -287,7 +288,7 @@ def main():
     picam2.start()
       # Initialize Hailo
     print("Loading Hailo model...")
-    model_path = "/home/shadowjak/models/root_board_vision.hef"
+    model_path = os.path.expanduser("~/models/root_board_vision.hef")
     
     try:
         with VDevice() as vdevice:
