@@ -30,9 +30,7 @@ def main():
     if not Path("train/labels").exists():
         print("Error: 'train/labels' folder not found.")
         print("Export your Roboflow dataset and extract it to this folder.")
-        sys.exit(1)
-
-    if not Path("valid").exists() or not Path("valid/images").exists():
+        sys.exit(1)    if not Path("valid").exists() or not Path("valid/images").exists():
         print("Error: 'valid/images' folder not found.")
         print("Export your Roboflow dataset and extract it to this folder.")
         sys.exit(1)
@@ -41,6 +39,16 @@ def main():
         print("Error: 'valid/labels' folder not found.")
         print("Export your Roboflow dataset and extract it to this folder.")
         sys.exit(1)
+
+    # Clear cache files to ensure fresh dataset scanning
+    cache_files = [
+        Path("train/labels.cache"),
+        Path("valid/labels.cache")
+    ]
+    for cache_file in cache_files:
+        if cache_file.exists():
+            cache_file.unlink()
+            print(f"Removed old cache: {cache_file}")
 
     # Create dataset config
     dataset_config = """
@@ -74,7 +82,7 @@ names:
     print()
     results = model.train(
         data="dataset.yaml",
-        epochs=1,
+        epochs=100,
         imgsz=(1280, 720),  # 16:9 aspect ratio - matches camera native resolution
         patience=20,
         # device omitted so ultralytics auto-detects CUDA/CPU
