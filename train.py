@@ -71,10 +71,8 @@ names:
     print("This will take several hours. Training time depends on:")
     print("  - GPU: 4-6 hours (1280x720 resolution)")
     print("  - CPU: 24+ hours")
-    print()
-
-    # Train
-    model.train(
+    print()    # Train
+    results = model.train(
         data="dataset.yaml",
         epochs=100,
         imgsz=(1280, 720),  # 16:9 aspect ratio - matches camera native resolution
@@ -88,10 +86,12 @@ names:
 
     # Export best model to ONNX
     print("\nExporting best model to ONNX format...")
-    best_model = YOLO("runs/detect/train/weights/best.pt")
+    best_pt_path = Path(results.save_dir) / "weights" / "best.pt"
+    best_model = YOLO(str(best_pt_path))
     best_model.export(format="onnx", simplify=True)
 
-    print("\nModel exported to: runs/detect/train/weights/best.onnx")
+    onnx_path = Path(results.save_dir) / "weights" / "best.onnx"
+    print(f"\nModel exported to: {onnx_path}")
     print("Next step: Copy best.onnx to your Raspberry Pi")
 
 
