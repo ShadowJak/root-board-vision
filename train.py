@@ -75,17 +75,16 @@ names:
         f.write(dataset_config)
 
     print("Loading YOLO model...")
-    model = YOLO("yolov8m.pt")
-
+    model = YOLO("yolov8m.pt")    
     print("\nStarting training...")
     print("This will take several hours. Training time depends on:")
-    print("  - GPU: 4-6 hours (1280x720 resolution)")
-    print("  - CPU: 24+ hours")
+    print("  - GPU: 2-4 hours (640x640 resolution)")
+    print("  - CPU: 12-18 hours")
     print()
     results = model.train(
         data="dataset.yaml",
         epochs=100,
-        imgsz=(1280, 720),  # 16:9 aspect ratio - matches camera native resolution
+        imgsz=640,  # 640x640 - standard YOLO size, optimized for Hailo compilation
         patience=20,
         # device omitted so ultralytics auto-detects CUDA/CPU
     )
@@ -98,11 +97,14 @@ names:
     print("\nExporting best model to ONNX format...")
     best_pt_path = Path(results.save_dir) / "weights" / "best.pt"
     best_model = YOLO(str(best_pt_path))
-    best_model.export(format="onnx", simplify=True)
-
-    onnx_path = Path(results.save_dir) / "weights" / "best.onnx"
+    best_model.export(format="onnx", simplify=True)    onnx_path = Path(results.save_dir) / "weights" / "best.onnx"
     print(f"\nModel exported to: {onnx_path}")
-    print("Next step: Copy best.onnx to your Raspberry Pi")
+    print("\nNext steps:")
+    print("1. Parse ONNX to HAR with Hailo DFC")
+    print("2. Optimize with calibration data")
+    print("3. Compile to HEF format")
+    print("4. Copy the .hef file to your Raspberry Pi")
+    print("\nSee README.md Step 4 for detailed compilation instructions.")
 
 
 if __name__ == "__main__":

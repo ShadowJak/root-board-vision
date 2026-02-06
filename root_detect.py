@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 ROOT Board Vision - Live Detection
-Run on Raspberry Pi to detect pieces and show clearing control
+Run on Raspberry Pi with Hailo AI HAT+ to detect pieces and show clearing control
 """
 
 import cv2
 import numpy as np
 import os
 from picamera2 import Picamera2
-from pyhailort import HEFModel, ConfigureParams, VDevice, FormatType
+from hailo_platform import (HEF, VDevice, HailoStreamInterface, InferVStreams, ConfigureParams,
+                            InputVStreamParams, OutputVStreamParams, FormatType)
 import time
 
 # Class IDs (must match train.py)
@@ -160,65 +161,70 @@ def draw_visualization(frame, clearing_detections, piece_detections):
     return frame
 
 
-def preprocess_frame(frame):
+def preprocess_frame(frame, target_size=(640, 640)):
     """Preprocess frame for Hailo inference"""
-    # Resize to model input size (should match training: 1280x720)
-    resized = cv2.resize(frame, (1280, 720))
+    # Resize to model input size
+    resized = cv2.resize(frame, target_size)
     
-    # Normalize to 0-1 range (YOLO expects this)
-    normalized = resized.astype(np.float32) / 255.0
+    # Hailo expects RGB uint8 format (0-255), no normalization needed
+    # Already in RGB from Picamera2
     
-    # Convert to NCHW format (batch, channels, height, width)
-    input_data = np.transpose(normalized, (2, 0, 1))  # HWC -> CHW
-    input_data = np.expand_dims(input_data, axis=0)   # Add batch dimension
-    
-    return input_data
+    return resized
 
 
-def postprocess_detections(raw_output, conf_threshold=0.25, iou_threshold=0.45):
+def postprocess_detections(raw_output, input_shape, frame_shape, conf_threshold=0.25, iou_threshold=0.45):
     """
-    Convert Hailo raw output to detection format
+    Convert ONNX raw output to detection format
     
-    YOLO output format is typically [batch, num_detections, 5+num_classes]
-    where each detection is [x_center, y_center, width, height, objectness, class_scores...]
+    YOLOv8 ONNX output format: [batch, 4+num_classes, num_boxes]
+    Transposed to: [batch, num_boxes, 4+num_classes]
+    where each detection is [x_center, y_center, width, height, class_scores...]
     """
     detections = []
     
-    # Extract detections from raw output
-    # Note: Exact format depends on your YOLO model's output layer
-    # This is a typical YOLO v8 format
-    if len(raw_output.shape) == 3:
-        batch_size, num_boxes, box_data_size = raw_output.shape
+    # YOLOv8 output is [1, 13, 8400] - transpose to [1, 8400, 13]
+    if len(raw_output.shape) == 3 and raw_output.shape[1] == 13:
+        raw_output = np.transpose(raw_output, (0, 2, 1))
+    
+    batch_size, num_boxes, box_data_size = raw_output.shape
+    
+    # Calculate scale factors
+    input_h, input_w = input_shape
+    frame_h, frame_w = frame_shape[:2]
+    scale_x = frame_w / input_w
+    scale_y = frame_h / input_h
+    
+    for i in range(num_boxes):
+        detection = raw_output[0, i, :]
         
-        for i in range(num_boxes):
-            detection = raw_output[0, i, :]
+        # Extract box coordinates (normalized 0-1)
+        x_center, y_center, width, height = detection[0:4]
+        
+        # Extract class scores (no objectness in YOLOv8)
+        class_scores = detection[4:]
+        
+        # Get best class
+        class_id = np.argmax(class_scores)
+        confidence = class_scores[class_id]
+        
+        if confidence > conf_threshold:
+            # Convert from normalized center coords to frame coords
+            x_min = int((x_center - width / 2) * input_w * scale_x)
+            y_min = int((y_center - height / 2) * input_h * scale_y)
+            x_max = int((x_center + width / 2) * input_w * scale_x)
+            y_max = int((y_center + height / 2) * input_h * scale_y)
             
-            # Extract box coordinates
-            x_center, y_center, width, height = detection[0:4]
+            # Clip to frame bounds
+            x_min = max(0, min(x_min, frame_w))
+            y_min = max(0, min(y_min, frame_h))
+            x_max = max(0, min(x_max, frame_w))
+            y_max = max(0, min(y_max, frame_h))
             
-            # Extract confidence and class scores
-            objectness = detection[4]
-            class_scores = detection[5:]
-            
-            # Get best class
-            class_id = np.argmax(class_scores)
-            class_conf = class_scores[class_id]
-            
-            # Combined confidence
-            confidence = objectness * class_conf
-            
-            if confidence > conf_threshold:
-                # Convert from center coords to corner coords
-                x_min = int((x_center - width / 2) * 1280)
-                y_min = int((y_center - height / 2) * 720)
-                x_max = int((x_center + width / 2) * 1280)
-                y_max = int((y_center + height / 2) * 720)
-                
-                detections.append({
-                    'class': int(class_id),
-                    'bbox': [x_min, y_min, x_max, y_max],
-                    'confidence': float(confidence)
-                })
+            detections.append({
+                'class': int(class_id),
+                'bbox': [x_min, y_min, x_max, y_max],
+                'confidence': float(confidence)
+            })
     
     # Apply NMS (Non-Maximum Suppression) to remove duplicate detections
     detections = apply_nms(detections, iou_threshold)
@@ -278,79 +284,106 @@ def main():
     print("ROOT Board Vision - Starting...")
     print("=" * 50)
     
+    # Configuration
+    INFERENCE_SIZE = (640, 640)
+    CAMERA_SIZE = (1280, 720)
+    CONF_THRESHOLD = 0.25
+    
     # Initialize camera
     print("Initializing camera...")
     picam2 = Picamera2()
     config = picam2.create_preview_configuration(
-        main={"size": (1280, 720), "format": "RGB888"}
+        main={"size": CAMERA_SIZE, "format": "RGB888"}
     )
     picam2.configure(config)
     picam2.start()
-      # Initialize Hailo
+    time.sleep(1)  # Camera warm-up
+    
+    # Initialize Hailo
     print("Loading Hailo model...")
     model_path = os.path.expanduser("~/models/root_board_vision.hef")
     
+    # Load HEF file
+    hef = HEF(model_path)
+    
+    # Get VDevice (the Hailo accelerator)
+    devices = VDevice.scan()
+    if not devices:
+        raise RuntimeError("No Hailo device found! Make sure AI HAT+ is connected.")
+    
+    print(f"Found Hailo device: {devices[0]}")
+    vdevice = VDevice(device_ids=devices)
+    
+    # Configure network
+    network_group = hef.get_network_groups()[0]
+    network_group_params = vdevice.create_configure_params(hef)
+    
+    # Configure input/output streams
+    input_vstreams_params = InputVStreamParams.make_from_network_group(network_group, quantized=False, format_type=FormatType.FLOAT32)
+    output_vstreams_params = OutputVStreamParams.make_from_network_group(network_group, quantized=False, format_type=FormatType.FLOAT32)
+    
+    print(f"Model input shape: {input_vstreams_params[0].shape}")
+    print(f"Using inference size: {INFERENCE_SIZE}")
+    print("Model loaded. Starting detection...")
+    print("Press 'q' to quit")
+    print()
+    
+    # FPS tracking
+    fps_start_time = time.time()
+    fps_frame_count = 0
+    current_fps = 0.0
+    
     try:
-        with VDevice() as vdevice:
-            # Load HEF model
-            hef = HEFModel(model_path)
-            
-            # Configure network group
-            configure_params = ConfigureParams.create_from_hef(hef, interface=FormatType.FLOAT32)
-            network_group = vdevice.configure(hef, configure_params)[0]
-            
-            # Get input/output virtual streams
-            network_group_params = network_group.create_params()
-            input_vstreams_params = network_group_params.input_vstream_params
-            output_vstreams_params = network_group_params.output_vstream_params
-            
-            print("Model loaded. Starting detection...")
-            print("Press 'q' to quit")
-            print()
-            
-            with network_group.activate(network_group_params):
-                # Create input and output virtual streams
-                input_vstream_info = hef.get_input_vstream_infos()[0]
-                output_vstream_info = hef.get_output_vstream_infos()[0]
+        with InferVStreams(network_group, input_vstreams_params, output_vstreams_params) as infer_pipeline:
+            while True:
+                # Capture frame
+                frame = picam2.capture_array()
                 
-                while True:
-                    # Capture frame
-                    frame = picam2.capture_array()
+                # Preprocess frame
+                input_data = preprocess_frame(frame, INFERENCE_SIZE)
+                
+                # Run inference on Hailo NPU
+                inference_start = time.time()
+                input_dict = {infer_pipeline.input_vstreams[0].name: np.expand_dims(input_data, axis=0).astype(np.float32)}
+                output_dict = infer_pipeline.infer(input_dict)
+                raw_output = list(output_dict.values())[0]
+                inference_time = time.time() - inference_start
+                
+                # Postprocess to get detections
+                detections = postprocess_detections(
+                    raw_output, 
+                    INFERENCE_SIZE, 
+                    frame.shape, 
+                    conf_threshold=CONF_THRESHOLD
+                )
+                
+                # Separate clearings and pieces
+                clearing_detections = [d for d in detections if d['class'] == 8]
+                piece_detections = [d for d in detections if d['class'] != 8]
+                
+                # Draw visualization
+                annotated_frame = draw_visualization(frame, clearing_detections, piece_detections)
+                
+                # Calculate FPS
+                fps_frame_count += 1
+                elapsed = time.time() - fps_start_time
+                if elapsed > 1.0:
+                    current_fps = fps_frame_count / elapsed
+                    fps_frame_count = 0
+                    fps_start_time = time.time()
+                
+                # Display stats
+                cv2.putText(annotated_frame, f"FPS: {current_fps:.1f} | Inference: {inference_time*1000:.0f}ms | HAILO NPU", 
+                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(annotated_frame, f"Detections: {len(detections)}", 
+                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                
+                # Display
+                cv2.imshow("ROOT Board Vision", annotated_frame)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
                     
-                    # Preprocess frame
-                    input_data = preprocess_frame(frame)
-                    
-                    # Run inference
-                    with network_group.activate(network_group_params):
-                        # Send input
-                        input_dict = {input_vstream_info.name: input_data}
-                        
-                        # Get output
-                        output_dict = network_group.infer(input_dict)
-                        
-                        # Extract output tensor
-                        raw_output = list(output_dict.values())[0]
-                        
-                        # Postprocess to get detections
-                        detections = postprocess_detections(raw_output)
-                    
-                    # Separate clearings and pieces
-                    clearing_detections = [d for d in detections if d['class'] == 8]
-                    piece_detections = [d for d in detections if d['class'] != 8]
-                    
-                    # Draw visualization
-                    annotated_frame = draw_visualization(frame, clearing_detections, piece_detections)
-                    
-                    # Display FPS
-                    cv2.putText(annotated_frame, f"Detections: {len(detections)}", 
-                               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-                    
-                    # Display
-                    cv2.imshow("ROOT Board Vision", annotated_frame)
-                    
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-                        
     except KeyboardInterrupt:
         print("\nStopping...")
     except Exception as e:

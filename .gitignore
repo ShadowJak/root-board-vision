@@ -21,10 +21,24 @@ dataset.yaml
 *.onnx
 *.hef
 *.har
+best.har
+best_optimized.har
+
+# Hailo compilation outputs
+hef_out/
+*.log
+acceleras.log
+hailo_sdk.client.log
+
+# Calibration data
+calib_images/
+calib_npy/
+*.npy
 
 # Datasets
 *.zip
 *.tar.gz
+data/
 
 # OS
 .DS_Store

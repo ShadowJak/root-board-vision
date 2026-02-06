@@ -101,7 +101,157 @@ project-folder/
 
 The path to copy is: `runs\detect\train\weights\best.onnx`
 
-## Step 4: Deploy to Raspberry Pi
+### Optional: Test Model with Webcam (Before Compiling)
+
+Before compiling for Hailo, you can test your trained model on your PC using a webcam:
+
+```powershell
+yolo predict model=runs/detect/train/weights/best.pt source=0 show=True conf=0.50
+```
+
+This will:
+- Use your PC's default webcam (`source=0`)
+- Show live detections in a window
+- Only show detections with 50%+ confidence
+- Press `q` to quit
+
+If your webcam is not the default, try `source=1` or `source=2`.
+
+## Step 4: Set Up Hailo Dataflow Compiler (WSL2)
+
+To deploy your model to the Hailo-8 AI HAT+, you need to compile it using the Hailo Dataflow Compiler (DFC). This runs in WSL2 (Windows Subsystem for Linux).
+
+### Prerequisites
+
+1. **Install WSL2 with Ubuntu**
+   ```powershell
+   wsl --install
+   ```
+   Restart your computer if prompted. Open a new PowerShell window and verify:
+   ```powershell
+   wsl --status
+   ```
+
+2. **Install Hailo Dataflow Compiler in WSL2**
+   
+   Open WSL2 terminal:
+   ```powershell
+   wsl
+   ```
+     Then inside WSL2, run:
+   ```bash
+   cd /c/Users/<your-username>/source/repos/root-board-vision
+   
+   # Install Python 3.10 (Hailo DFC requires exactly 3.10, not 3.11 or 3.12)
+   sudo apt update
+   sudo apt install -y software-properties-common
+   sudo add-apt-repository ppa:deadsnakes/ppa -y
+   sudo apt update
+   sudo apt install -y python3.10 python3.10-venv python3.10-dev
+   
+   # Create virtual environment with Python 3.10
+   python3.10 -m venv .venv
+   source .venv/bin/activate
+     # Verify Python version (should show 3.10.x)
+   python --version
+   
+   # Install Hailo Dataflow Compiler from the downloaded .whl file
+   # First, download hailo_dataflow_compiler-3.33.0-py3-none-linux_x86_64.whl from:
+   # https://hailo.ai/developer-zone/software-downloads/
+   # (Save it to your Downloads folder)
+     pip install --upgrade pip
+   pip install /c/Users/<your-username>/Downloads/hailo_dataflow_compiler-3.33.0-py3-none-linux_x86_64.whl
+   ```
+   
+   **Note:** This installation takes 5-10 minutes as it extracts and installs all dependencies.
+
+3. **Verify installation**
+   ```bash
+   hailo --version
+   ```
+   You should see the Hailo DFC version (e.g., 3.33.0).
+
+### Compilation Steps
+
+**CRITICAL:** Your 26 TOPS AI HAT+ has a full **Hailo-8** chip. Always use `--hw-arch hailo8` (NOT `hailo8l`). Using `hailo8l` will cause "Agent infeasible" compilation errors because it limits the compiler to a smaller resource pool.
+
+#### Step 4a: Prepare Calibration Images
+
+Before compiling, prepare calibration data for quantization:
+
+1. **Collect calibration images** - Copy 50-100 diverse images from your training set:
+   ```powershell
+   # Create calibration folder
+   mkdir calib_images
+   
+   # Copy some training images (aim for 50-100 images with variety)
+   copy train\images\* calib_images\
+   ```
+
+2. **Convert to numpy format** - Run the conversion script:
+   ```powershell
+   python convert_calib.py
+   ```
+   
+   This creates a `calib_npy/` folder with `.npy` files that Hailo uses for calibration.
+
+#### Step 4b: Parse ONNX to HAR (2 minutes)
+
+Convert your ONNX model to Hailo Archive (HAR) format:
+
+```powershell
+wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8'
+```
+
+This creates `best.har` in your project folder.
+
+#### Step 4c: Optimize with Calibration Data (5-10 minutes)
+
+Quantize the model using calibration images:
+
+```powershell
+wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy'
+```
+
+This creates `best_optimized.har`.
+
+#### Step 4d: Compile to HEF (15-30 minutes)
+
+Compile the optimized model to Hailo Executable Format (HEF):
+
+```powershell
+wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out'
+```
+
+This creates `best.hef` in the `hef_out/` folder.
+
+**If you get "Agent infeasible" or "concat14 errors":**
+
+The model is too complex for single-pass compilation. Enable maximum optimization:
+
+1. Verify `model_script.alls` exists with this content:
+   ```
+   performance_param(compiler_optimization_level=max)
+   ```
+
+2. Run the compiler with the optimization script:
+   ```powershell
+   wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo compiler best_optimized.har --hw-arch hailo8 --model-script model_script.alls --output-dir ./hef_out'
+   ```
+   
+   **Note:** This can take 30-60 minutes or longer. Be patient!
+
+#### Complete Pipeline (All Steps at Once)
+
+To run all three compilation steps in sequence:
+
+```powershell
+wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out'
+```
+
+See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting and details.
+
+## Step 5: Deploy to Raspberry Pi
 
 **Control Rules:**
 - Faction with the most total pieces (warriors + buildings) controls the clearing
@@ -112,56 +262,42 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
 **Prerequisites:**
 - Raspberry Pi 5 with Raspberry Pi OS installed
 - Camera Module 3 connected
-- Hailo-8 AI HAT+ (26 TOPS) with AI Kit software installed (includes drivers, rpicam-apps, and Hailo compiler)
-  - Installation guide: https://www.raspberrypi.com/documentation/accessories/ai-kit.html
 
 **Steps:**
 
-1. **On your Raspberry Pi** - Create project folder:
+1. **On your Raspberry Pi** - Install dependencies and create folder:
    ```bash
-   mkdir -p ~/root-board-vision
-   cd ~/root-board-vision
+   sudo apt update
+   sudo apt install -y python3-onnxruntime python3-opencv python3-picamera2
+   mkdir -p ~/models
    ```
 
 2. **On your Windows PC** - Copy files from the project folder where `train.py` is located.
    
-   Replace `<username>` with your Pi username and `<hostname>` with your Pi's IP address or hostname.
+   Replace `<username>` with your Pi username and `<hostname>` with your Pi's IP address or hostname (e.g., `username@pi.local`).
    
    ```powershell
-   scp runs\detect\train\weights\best.onnx <username>@<hostname>:~/root-board-vision/
-   scp root_detect.py <username>@<hostname>:~/root-board-vision/
+   scp runs\detect\train\weights\best.onnx <username>@<hostname>:~/models/root_board_vision.onnx
+   scp root_detect.py <username>@<hostname>:~/models/
    ```
    
    If `scp` command not found, install OpenSSH Client:
    - Settings → Apps → Optional Features → Add a feature
-   - Search "OpenSSH Client" → Install
-   - Restart PowerShell
+   - Search "OpenSSH Client" → Install   - Restart PowerShell
 
 3. **On your Raspberry Pi** - Verify files:
    ```bash
+   cd ~/models
    ls -lh
-   ```
-   Expected output: `best.onnx`, `root_detect.py`
+   ```   Expected output: `root_board_vision.onnx`, `root_detect.py`
 
-4. **On your Raspberry Pi** - Convert ONNX to HEF:
+4. **On your Raspberry Pi** - Run detection:
    ```bash
-   hailo parser onnx best.onnx
-   hailo compiler best.har
-   ```
-   This creates `best.hef` optimized for Hailo-8 hardware.
-
-5. **On your Raspberry Pi** - Organize files:
-   ```bash
-   mkdir -p ~/models
-   mv best.hef ~/models/root_board_vision.hef
-   ```
-
-6. **On your Raspberry Pi** - Run detection:
-   ```bash
+   cd ~/models
    python3 root_detect.py
    ```
 
-**Output:** Live camera feed with bounding boxes around detected clearings and pieces.
+**Output:** Live camera feed with bounding boxes around detected clearings and pieces showing which faction controls each clearing.
 
 ## Summary
 
