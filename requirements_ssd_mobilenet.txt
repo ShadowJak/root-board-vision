@@ -1,0 +1,10 @@
+tensorflow>=2.16.0
+tf-slim
+protobuf
+pillow
+lxml
+matplotlib
+Cython
+pycocotools
+pyyaml
+opencv-python

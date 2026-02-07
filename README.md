@@ -123,6 +123,8 @@ Before compiling for Hailo, test the trained model on the PC using a webcam:
 yolo predict model=runs/detect/train/weights/best.pt source=0 show=True conf=0.50
 ```
 
+**Note:** Unless set up beforehand, WSL will not have access to the webcam.
+
 This will:
 - Use the PC's default webcam (`source=0`)
 - Show live detections in a window
@@ -188,54 +190,35 @@ Convert the ONNX model to Hailo Archive (HAR) format:
 
 ```bash
 source .venv/bin/activate
-hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Concat" "/model.23/Sigmoid"
+hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Sigmoid" "/model.23/Concat""
 ```
 
 This creates `best.har` in the project folder.
 
-#### Step 4c: Optimize with Calibration Data (5-10 minutes)
+#### Step 4c: Optimize and Compile to HEF (15-60 minutes)
 
-Quantize the model using calibration images:
-
-```bash
-hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy
-```
-
-This creates `best_optimized.har`.
-
-#### Step 4d: Compile to HEF (15-30 minutes)
-
-Compile the optimized model to Hailo Executable Format (HEF):
-
-```bash
-hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
-```
-
-This creates `best.hef` in the `hef_out/` folder.
-
-**Troubleshooting compilation errors:**
-
-If "Agent infeasible" or "concat14 errors" occur, the model is too complex for single-pass compilation. Enable maximum optimization:
-
-1. Verify `model_script.alls` exists with this content:
-   ```
-   performance_param(compiler_optimization_level=max)
-   ```
-
-2. Run the compiler with the optimization script:
-   ```bash
-   hailo compiler best_optimized.har --hw-arch hailo8 --model-script model_script.alls --output-dir ./hef_out
-   ```
-   
-   **Note:** This can take 30-60 minutes or longer. Be patient!
-
-#### Complete Pipeline (All Steps at Once)
-
-To run all three compilation steps in sequence:
+Run the optimization and compilation script:
 
 ```bash
 source .venv/bin/activate
-hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
+python finalize.py
+```
+
+This script:
+- Loads the HAR file (`best.har`)
+- Optimizes the model using JPG images from `calib_images/`
+- Compiles to HEF format
+- Creates `best.hef` in the project folder
+
+**Note:** This can take 15-60 minutes depending on model complexity. The script will show progress updates.
+
+#### Complete Pipeline (All Steps at Once)
+
+To run both compilation steps in sequence:
+
+```bash
+source .venv/bin/activate
+hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Concat" "/model.23/Sigmoid" && python finalize.py
 ```
 
 ## Step 5: Deploy to Raspberry Pi

@@ -6,6 +6,7 @@ __pycache__/
 # Virtual environment
 venv/
 .venv/
+venv_ssd_mobilenet/
 env/
 ENV/
 
