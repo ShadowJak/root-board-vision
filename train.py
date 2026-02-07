@@ -75,7 +75,7 @@ names:
         f.write(dataset_config)
 
     print("Loading YOLO model...")
-    model = YOLO("yolov8m.pt")    
+    model = YOLO("yolo11s.pt")    
     print("\nStarting training...")
     print("This will take several hours. Training time depends on:")
     print("  - GPU: 2-4 hours (640x640 resolution)")
