@@ -10,7 +10,20 @@
 
 ## Step 1: Install Dependencies (5 minutes)
 
-Create a virtual environment with Python 3.13+ and install packages:
+Install Python 3.13 for training:
+
+```bash
+# Add deadsnakes PPA and install Python 3.13
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install -y python3.13 python3.13-venv python3.13-dev
+
+# Verify installation
+python3.13 --version
+```
+
+Create a virtual environment and install packages:
 
 ```bash
 python3.13 -m venv venv
@@ -127,9 +140,7 @@ Compile the model using the Hailo Dataflow Compiler (DFC) with Python 3.10.
 
 ```bash
 # Install Python 3.10 (Hailo DFC requires exactly 3.10)
-sudo apt update
-sudo apt install -y software-properties-common
-sudo add-apt-repository ppa:deadsnakes/ppa -y
+# The deadsnakes PPA should already be configured from Step 1
 sudo apt update
 sudo apt install -y python3.10 python3.10-venv python3.10-dev
 
@@ -146,6 +157,11 @@ pip install -r requirements_compiling.txt
 ```
 
 **Note:** This installation takes 5-10 minutes.
+
+**To reactivate the compilation environment later:**
+```bash
+source .venv/bin/activate
+```
 
 ### Verify installation
 ```bash
