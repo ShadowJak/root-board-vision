@@ -1,0 +1,4 @@
+numpy==1.23.3
+pillow
+# The line below points to your local wheel file
+./hailo_dataflow_compiler-3.33.0-py3-none-linux_x86_64.whl

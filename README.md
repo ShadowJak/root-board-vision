@@ -2,23 +2,25 @@
 
 ## What You Need
 
-- Windows PC with GPU (for training - CPU will take 12+ hours)
+- PC with GPU (for training - CPU will take 12+ hours)
+- WSL2 with Ubuntu on Windows (or native Linux)
 - Raspberry Pi 5 + Camera Module 3 + Hailo-8 AI Hat+ (26 TOPS)
-- Python 3.8+
+- Python 3.13+ (for training)
+- Python 3.10 (for Hailo compilation)
 
 ## Step 1: Install Dependencies (5 minutes)
 
-Create a virtual environment and install packages:
+Create a virtual environment with Python 3.13+ and install packages:
 
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+```bash
+python3.13 -m venv venv
+source venv/bin/activate
+pip install -r requirements_training.txt
 ```
 
 **Next time you work on this project**, activate the environment:
-```powershell
-venv\Scripts\Activate.ps1
+```bash
+source venv/bin/activate
 ```
 
 The `(venv)` prefix in your prompt indicates the environment is active.
@@ -75,7 +77,7 @@ The `(venv)` prefix in your prompt indicates the environment is active.
 
 Make sure your virtual environment is activated, then:
 
-```powershell
+```bash
 python train.py
 ```
 
@@ -105,7 +107,7 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
 
 Before compiling for Hailo, you can test your trained model on your PC using a webcam:
 
-```powershell
+```bash
 yolo predict model=runs/detect/train/weights/best.pt source=0 show=True conf=0.50
 ```
 
@@ -117,59 +119,39 @@ This will:
 
 If your webcam is not the default, try `source=1` or `source=2`.
 
-## Step 4: Set Up Hailo Dataflow Compiler (WSL2)
+## Step 4: Set Up Hailo Dataflow Compiler
 
-To deploy your model to the Hailo-8 AI HAT+, you need to compile it using the Hailo Dataflow Compiler (DFC). This runs in WSL2 (Windows Subsystem for Linux).
+Compile your model using the Hailo Dataflow Compiler (DFC) with Python 3.10.
 
-### Prerequisites
+### Install Compilation Environment
 
-1. **Install WSL2 with Ubuntu**
-   ```powershell
-   wsl --install
-   ```
-   Restart your computer if prompted. Open a new PowerShell window and verify:
-   ```powershell
-   wsl --status
-   ```
+```bash
+# Install Python 3.10 (Hailo DFC requires exactly 3.10)
+sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install -y python3.10 python3.10-venv python3.10-dev
 
-2. **Install Hailo Dataflow Compiler in WSL2**
-   
-   Open WSL2 terminal:
-   ```powershell
-   wsl
-   ```
-     Then inside WSL2, run:
-   ```bash
-   cd /c/Users/<your-username>/source/repos/root-board-vision
-   
-   # Install Python 3.10 (Hailo DFC requires exactly 3.10, not 3.11 or 3.12)
-   sudo apt update
-   sudo apt install -y software-properties-common
-   sudo add-apt-repository ppa:deadsnakes/ppa -y
-   sudo apt update
-   sudo apt install -y python3.10 python3.10-venv python3.10-dev
-   
-   # Create virtual environment with Python 3.10
-   python3.10 -m venv .venv
-   source .venv/bin/activate
-     # Verify Python version (should show 3.10.x)
-   python --version
-   
-   # Install Hailo Dataflow Compiler from the downloaded .whl file
-   # First, download hailo_dataflow_compiler-3.33.0-py3-none-linux_x86_64.whl from:
-   # https://hailo.ai/developer-zone/software-downloads/
-   # (Save it to your Downloads folder)
-     pip install --upgrade pip
-   pip install /c/Users/<your-username>/Downloads/hailo_dataflow_compiler-3.33.0-py3-none-linux_x86_64.whl
-   ```
-   
-   **Note:** This installation takes 5-10 minutes as it extracts and installs all dependencies.
+# Create virtual environment with Python 3.10
+python3.10 -m venv .venv
+source .venv/bin/activate
 
-3. **Verify installation**
-   ```bash
-   hailo --version
-   ```
-   You should see the Hailo DFC version (e.g., 3.33.0).
+# Verify Python version (should show 3.10.x)
+python --version
+
+# Install compilation dependencies
+pip install --upgrade pip
+pip install -r requirements_compiling.txt
+```
+
+**Note:** This installation takes 5-10 minutes.
+
+### Verify installation
+```bash
+hailo --version
+```
+You should see the Hailo DFC version (e.g., 3.33.0).
 
 ### Compilation Steps
 
@@ -180,16 +162,16 @@ To deploy your model to the Hailo-8 AI HAT+, you need to compile it using the Ha
 Before compiling, prepare calibration data for quantization:
 
 1. **Collect calibration images** - Copy 50-100 diverse images from your training set:
-   ```powershell
+   ```bash
    # Create calibration folder
    mkdir calib_images
    
    # Copy some training images (aim for 50-100 images with variety)
-   copy train\images\* calib_images\
+   cp train/images/* calib_images/
    ```
 
 2. **Convert to numpy format** - Run the conversion script:
-   ```powershell
+   ```bash
    python convert_calib.py
    ```
    
@@ -199,8 +181,9 @@ Before compiling, prepare calibration data for quantization:
 
 Convert your ONNX model to Hailo Archive (HAR) format:
 
-```powershell
-wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8'
+```bash
+source .venv/bin/activate
+hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8
 ```
 
 This creates `best.har` in your project folder.
@@ -209,8 +192,8 @@ This creates `best.har` in your project folder.
 
 Quantize the model using calibration images:
 
-```powershell
-wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy'
+```bash
+hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy
 ```
 
 This creates `best_optimized.har`.
@@ -219,8 +202,8 @@ This creates `best_optimized.har`.
 
 Compile the optimized model to Hailo Executable Format (HEF):
 
-```powershell
-wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out'
+```bash
+hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
 ```
 
 This creates `best.hef` in the `hef_out/` folder.
@@ -235,8 +218,8 @@ The model is too complex for single-pass compilation. Enable maximum optimizatio
    ```
 
 2. Run the compiler with the optimization script:
-   ```powershell
-   wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo compiler best_optimized.har --hw-arch hailo8 --model-script model_script.alls --output-dir ./hef_out'
+   ```bash
+   hailo compiler best_optimized.har --hw-arch hailo8 --model-script model_script.alls --output-dir ./hef_out
    ```
    
    **Note:** This can take 30-60 minutes or longer. Be patient!
@@ -245,8 +228,9 @@ The model is too complex for single-pass compilation. Enable maximum optimizatio
 
 To run all three compilation steps in sequence:
 
-```powershell
-wsl bash -lc 'cd /c/Users/thesh/source/repos/root-board-vision && . .venv/bin/activate && hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out'
+```bash
+source .venv/bin/activate
+hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
 ```
 
 See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting and details.
@@ -272,18 +256,14 @@ See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting 
    mkdir -p ~/models
    ```
 
-2. **On your Windows PC** - Copy files from the project folder where `train.py` is located.
+2. **On your Linux PC** - Copy files from the project folder where `train.py` is located.
    
    Replace `<username>` with your Pi username and `<hostname>` with your Pi's IP address or hostname (e.g., `username@pi.local`).
    
-   ```powershell
-   scp runs\detect\train\weights\best.onnx <username>@<hostname>:~/models/root_board_vision.onnx
+   ```bash
+   scp runs/detect/train/weights/best.onnx <username>@<hostname>:~/models/root_board_vision.onnx
    scp root_detect.py <username>@<hostname>:~/models/
    ```
-   
-   If `scp` command not found, install OpenSSH Client:
-   - Settings → Apps → Optional Features → Add a feature
-   - Search "OpenSSH Client" → Install   - Restart PowerShell
 
 3. **On your Raspberry Pi** - Verify files:
    ```bash
