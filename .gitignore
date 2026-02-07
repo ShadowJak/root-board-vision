@@ -29,6 +29,7 @@ hef_out/
 *.log
 acceleras.log
 hailo_sdk.client.log
+hailo_dataflow_compiler-*.whl
 
 # Calibration data
 calib_images/
