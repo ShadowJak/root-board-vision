@@ -97,7 +97,8 @@ names:
     print("\nExporting best model to ONNX format...")
     best_pt_path = Path(results.save_dir) / "weights" / "best.pt"
     best_model = YOLO(str(best_pt_path))
-    best_model.export(format="onnx", simplify=True)    onnx_path = Path(results.save_dir) / "weights" / "best.onnx"
+    best_model.export(format="onnx", simplify=True)
+    onnx_path = Path(results.save_dir) / "weights" / "best.onnx"
     print(f"\nModel exported to: {onnx_path}")
     print("\nNext steps:")
     print("1. Parse ONNX to HAR with Hailo DFC")

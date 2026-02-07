@@ -66,7 +66,6 @@ The `(venv)` prefix in the prompt indicates the environment is active.
 - `Cat Warrior` - Orange cat warriors
 
 **Labeling tips:**
-- Label all **visible** clearings in each frame (not all 12 will be visible at once)
 - Clearing boxes should encompass the entire clearing area
 - Piece boxes should be tight around each piece
 
