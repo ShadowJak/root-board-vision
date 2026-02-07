@@ -1,6 +1,6 @@
 # ROOT Board Vision
 
-## What You Need
+## What Is Needed
 
 - PC with GPU (for training - CPU will take 12+ hours)
 - WSL2 with Ubuntu on Windows (or native Linux)
@@ -18,16 +18,16 @@ source venv/bin/activate
 pip install -r requirements_training.txt
 ```
 
-**Next time you work on this project**, activate the environment:
+**To reactivate the environment later:**
 ```bash
 source venv/bin/activate
 ```
 
-The `(venv)` prefix in your prompt indicates the environment is active.
+The `(venv)` prefix in the prompt indicates the environment is active.
 
 ## Step 2: Collect and Label Training Data (3-4 hours)
 
-1. **Record video** of your ROOT board with your phone
+1. **Record video** of the ROOT board with a phone
    - Move pieces around during recording
    - Capture different board states
    - **Vary everything**: lighting, angles, camera height, board rotation
@@ -36,32 +36,32 @@ The `(venv)` prefix in your prompt indicates the environment is active.
 
 2. **Use Roboflow to extract frames and label**
    - Go to https://roboflow.com (free account)
-   - Create new project → Upload your video
+   - Create new project → Upload the video
    - Roboflow will auto-extract frames (picks diverse ones, skips duplicates)
    - **Label at least 200 images** (more is better, aim for 300-500)
    - Draw boxes around both clearings AND pieces
    
 **Class names to use:**
-- `clearing` - Draw a box around each clearing space on the board
-- `marquise_warrior` - Orange cat warriors
-- `marquise_building` - Orange cat buildings (sawmill, workshop, recruiter)
-- `eyrie_warrior` - Blue bird warriors  
-- `eyrie_building` - Blue bird buildings (roosts)
-- `woodland_warrior` - Green alliance warriors
-- `woodland_building` - Green alliance buildings (bases, sympathy tokens)
-- `vagabond` - The vagabond pawn (doesn't affect control)
+- `Clearing` - Draw a box around each clearing space on the board
+- `Alliance Building` - Green alliance buildings (bases, sympathy tokens)
+- `Alliance Token` - Green alliance sympathy tokens
+- `Alliance Warrior` - Green alliance warriors
+- `Bird Building` - Blue bird buildings (roosts)
+- `Bird Warrior` - Blue bird warriors
+- `Cat Building` - Orange cat buildings (sawmill, workshop, recruiter)
+- `Cat Token` - Orange cat wood tokens
+- `Cat Warrior` - Orange cat warriors
 
 **Labeling tips:**
-- Label all **visible** clearings in each frame (you won't see all 12 at once)
+- Label all **visible** clearings in each frame (not all 12 will be visible at once)
 - Clearing boxes should encompass the entire clearing area
 - Piece boxes should be tight around each piece
-- This dual labeling allows the system to map pieces to clearings
 
 3. **Export annotations**
-   - In Roboflow, go to "Generate" → Split your dataset (70% train, 20% valid, 10% test)
+   - In Roboflow, go to "Generate" → Split the dataset (~80% train, ~20% valid)
    - Click "Export" → Select "YOLO v8" format → Download the zip file
    - Right-click the downloaded zip → "Extract All..." → Select the folder where `train.py` is → Click "Extract"
-   - After extraction, you should see `train/` and `valid/` folders next to `train.py`:
+   - After extraction, the `train/` and `valid/` folders should appear next to `train.py`:
      ```
      train.py
      requirements.txt
@@ -75,13 +75,13 @@ The `(venv)` prefix in your prompt indicates the environment is active.
 
 ## Step 3: Train (2-4 hours with GPU, 12+ hours with CPU)
 
-Make sure your virtual environment is activated, then:
+Ensure the virtual environment is activated, then:
 
 ```bash
 python train.py
 ```
 
-This will train for 100 epochs. When done, YOLO will create a `runs/` folder in your project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
+This will train for 100 epochs. When done, YOLO will create a `runs/` folder in the project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
 
 ```
 project-folder/
@@ -105,23 +105,23 @@ The path to copy is: `runs\detect\train\weights\best.onnx`
 
 ### Optional: Test Model with Webcam (Before Compiling)
 
-Before compiling for Hailo, you can test your trained model on your PC using a webcam:
+Before compiling for Hailo, test the trained model on the PC using a webcam:
 
 ```bash
 yolo predict model=runs/detect/train/weights/best.pt source=0 show=True conf=0.50
 ```
 
 This will:
-- Use your PC's default webcam (`source=0`)
+- Use the PC's default webcam (`source=0`)
 - Show live detections in a window
 - Only show detections with 50%+ confidence
 - Press `q` to quit
 
-If your webcam is not the default, try `source=1` or `source=2`.
+If the default webcam doesn't work, try `source=1` or `source=2`.
 
 ## Step 4: Set Up Hailo Dataflow Compiler
 
-Compile your model using the Hailo Dataflow Compiler (DFC) with Python 3.10.
+Compile the model using the Hailo Dataflow Compiler (DFC) with Python 3.10.
 
 ### Install Compilation Environment
 
@@ -151,17 +151,17 @@ pip install -r requirements_compiling.txt
 ```bash
 hailo --version
 ```
-You should see the Hailo DFC version (e.g., 3.33.0).
+Expected output: Hailo DFC version (e.g., 3.33.0).
 
 ### Compilation Steps
 
-**CRITICAL:** Your 26 TOPS AI HAT+ has a full **Hailo-8** chip. Always use `--hw-arch hailo8` (NOT `hailo8l`). Using `hailo8l` will cause "Agent infeasible" compilation errors because it limits the compiler to a smaller resource pool.
+**CRITICAL:** The 26 TOPS AI HAT+ has a full **Hailo-8** chip. Always use `--hw-arch hailo8` (NOT `hailo8l`). Using `hailo8l` will cause "Agent infeasible" compilation errors because it limits the compiler to a smaller resource pool.
 
 #### Step 4a: Prepare Calibration Images
 
 Before compiling, prepare calibration data for quantization:
 
-1. **Collect calibration images** - Copy 50-100 diverse images from your training set:
+1. **Collect calibration images** - Copy 50-100 diverse images from the training set:
    ```bash
    # Create calibration folder
    mkdir calib_images
@@ -179,14 +179,14 @@ Before compiling, prepare calibration data for quantization:
 
 #### Step 4b: Parse ONNX to HAR (2 minutes)
 
-Convert your ONNX model to Hailo Archive (HAR) format:
+Convert the ONNX model to Hailo Archive (HAR) format:
 
 ```bash
 source .venv/bin/activate
 hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8
 ```
 
-This creates `best.har` in your project folder.
+This creates `best.har` in the project folder.
 
 #### Step 4c: Optimize with Calibration Data (5-10 minutes)
 
@@ -208,9 +208,9 @@ hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
 
 This creates `best.hef` in the `hef_out/` folder.
 
-**If you get "Agent infeasible" or "concat14 errors":**
+**Troubleshooting compilation errors:**
 
-The model is too complex for single-pass compilation. Enable maximum optimization:
+If "Agent infeasible" or "concat14 errors" occur, the model is too complex for single-pass compilation. Enable maximum optimization:
 
 1. Verify `model_script.alls` exists with this content:
    ```
@@ -249,29 +249,29 @@ See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting 
 
 **Steps:**
 
-1. **On your Raspberry Pi** - Install dependencies and create folder:
+1. **On the Raspberry Pi** - Install dependencies and create folder:
    ```bash
    sudo apt update
-   sudo apt install -y python3-onnxruntime python3-opencv python3-picamera2
-   mkdir -p ~/models
+   sudo apt install -y hailo-all
+   sudo reboot
    ```
 
-2. **On your Linux PC** - Copy files from the project folder where `train.py` is located.
+2. **On the Linux PC or WSL** - Copy files from the project folder where `train.py` is located.
    
-   Replace `<username>` with your Pi username and `<hostname>` with your Pi's IP address or hostname (e.g., `username@pi.local`).
+   Replace `<username>` with the Pi username and `<hostname>` with the Pi's IP address or hostname (e.g., `username@pi.local`).
    
    ```bash
-   scp runs/detect/train/weights/best.onnx <username>@<hostname>:~/models/root_board_vision.onnx
+   scp hef_out/best.hef <username>@<hostname>:~/models/root_board_vision.hef
    scp root_detect.py <username>@<hostname>:~/models/
    ```
 
-3. **On your Raspberry Pi** - Verify files:
+3. **On the Raspberry Pi** - Verify files:
    ```bash
    cd ~/models
    ls -lh
    ```   Expected output: `root_board_vision.onnx`, `root_detect.py`
 
-4. **On your Raspberry Pi** - Run detection:
+4. **On the Raspberry Pi** - Run detection:
    ```bash
    cd ~/models
    python3 root_detect.py
