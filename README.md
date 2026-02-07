@@ -269,7 +269,7 @@ See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting 
    ```bash
    cd ~/models
    ls -lh
-   ```   Expected output: `root_board_vision.onnx`, `root_detect.py`
+   ```   Expected output: `root_board_vision.hef`, `root_detect.py`
 
 4. **On the Raspberry Pi** - Run detection:
    ```bash
