@@ -176,21 +176,11 @@ Expected output: Hailo DFC version (e.g., 3.33.0).
 
 Before compiling, prepare calibration data for quantization:
 
-1. **Collect calibration images** - Copy 50-100 diverse images from the training set:
-   ```bash
-   # Create calibration folder
-   mkdir calib_images
-   
-   # Copy some training images (aim for 50-100 images with variety)
-   cp train/images/* calib_images/
-   ```
+```bash
+mkdir -p calib_images && find train/images -type f | shuf -n 64 | xargs -I {} cp {} calib_images/
+```
 
-2. **Convert to numpy format** - Run the conversion script:
-   ```bash
-   python convert_calib.py
-   ```
-   
-   This creates a `calib_npy/` folder with `.npy` files that Hailo uses for calibration.
+This randomly selects 64 images from your training set for calibration.
 
 #### Step 4b: Parse ONNX to HAR (2 minutes)
 
@@ -198,7 +188,7 @@ Convert the ONNX model to Hailo Archive (HAR) format:
 
 ```bash
 source .venv/bin/activate
-hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8
+hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Concat" "/model.23/Sigmoid"
 ```
 
 This creates `best.har` in the project folder.
@@ -247,8 +237,6 @@ To run all three compilation steps in sequence:
 source .venv/bin/activate
 hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 && hailo optimize best.har --hw-arch hailo8 --calib-set-path calib_npy && hailo compiler best_optimized.har --hw-arch hailo8 --output-dir ./hef_out
 ```
-
-See [COMPILE_WITH_WSL2.md](COMPILE_WITH_WSL2.md) for additional troubleshooting and details.
 
 ## Step 5: Deploy to Raspberry Pi
 
