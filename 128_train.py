@@ -74,11 +74,15 @@ names: ['Alliance Building', 'Alliance Token', 'Alliance Warrior', 'Bird Buildin
     print("This will take 2-4 hours with GPU acceleration on RTX 4080.")
     print()
     
+    # --- Dynamic resolution and folder naming ---
+    img_size = 1280  # Change this to 1280 for high-res training
+    folder_name = f"root_yolov5n_128ch_{img_size}_"
+    
     # Train using YOLOv5 train.py with subprocess for proper error handling
     try:
         subprocess.run([
             "python", "yolov5/train.py",
-            "--img", "640",
+            "--img", str(img_size),
             "--batch", "16",
             "--epochs", "100",
             "--data", str(root / "dataset.yaml"),
@@ -87,8 +91,7 @@ names: ['Alliance Building', 'Alliance Token', 'Alliance Warrior', 'Bird Buildin
             "--cache",
             "--device", "0",
             "--project", "runs/train",
-            "--name", "root_yolov5n_128ch",
-            "--exist-ok"  # Overwrite previous runs
+            "--name", folder_name
         ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"\nERROR: Training failed with exit code {e.returncode}")
@@ -101,12 +104,11 @@ names: ['Alliance Building', 'Alliance Token', 'Alliance Warrior', 'Bird Buildin
     # Export best model to ONNX
     print("\nExporting best model to ONNX format...")
     
-    # Dynamically find the most recent training folder
-    train_folders = list(Path("runs/train").glob("root_yolov5n*"))
+    # Dynamically find the most recent training folder matching the resolution
+    train_folders = list(Path("runs/train").glob(f"root_yolov5n_128ch_*"))
     if not train_folders:
         print("ERROR: No training output found in runs/train/")
         sys.exit(1)
-    
     # Sort by modification time, get most recent
     latest_folder = max(train_folders, key=lambda p: p.stat().st_mtime)
     best_pt_path = latest_folder / "weights" / "best.pt"
@@ -125,7 +127,7 @@ names: ['Alliance Building', 'Alliance Token', 'Alliance Warrior', 'Bird Buildin
             "--include", "onnx",
             "--simplify",
             "--opset", "11",  # Hailo AI HAT+ prefers opset 11
-            "--imgsz", "640", "640"
+            "--imgsz", str(img_size), str(img_size)
         ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"\nERROR: Export failed with exit code {e.returncode}")
