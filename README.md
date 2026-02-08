@@ -26,14 +26,24 @@ python3.13 --version
 Create a virtual environment and install packages:
 
 ```bash
-python3.13 -m venv venv
-source venv/bin/activate
-pip install -r requirements_training.txt
+python3.13 -m venv venv_yolov5n
+source venv_yolov5n/bin/activate
+pip install --upgrade pip
+pip install -r requirements_yolov5n.txt
+```
+
+**If you already created venv_yolov5n and got NumPy errors, delete it and recreate:**
+```bash
+rm -rf venv_yolov5n
+python3.13 -m venv venv_yolov5n
+source venv_yolov5n/bin/activate
+pip install --upgrade pip
+pip install -r requirements_yolov5n.txt
 ```
 
 **To reactivate the environment later:**
 ```bash
-source venv/bin/activate
+source venv_yolov5n/bin/activate
 ```
 
 The `(venv)` prefix in the prompt indicates the environment is active.
@@ -55,7 +65,6 @@ The `(venv)` prefix in the prompt indicates the environment is active.
    - Draw boxes around both clearings AND pieces
    
 **Class names to use:**
-- `Clearing` - Draw a box around each clearing space on the board
 - `Alliance Building` - Green alliance buildings (bases, sympathy tokens)
 - `Alliance Token` - Green alliance sympathy tokens
 - `Alliance Warrior` - Green alliance warriors
@@ -63,7 +72,8 @@ The `(venv)` prefix in the prompt indicates the environment is active.
 - `Bird Warrior` - Blue bird warriors
 - `Cat Building` - Orange cat buildings (sawmill, workshop, recruiter)
 - `Cat Token` - Orange cat wood tokens
-- `Cat Warrior` - Orange cat warriors
+- `Cat Warrior` - Orange cat warrior
+- `Clearing` - Draw a box around each clearing space on the board
 
 **Labeling tips:**
 - Clearing boxes should encompass the entire clearing area
@@ -71,11 +81,11 @@ The `(venv)` prefix in the prompt indicates the environment is active.
 
 3. **Export annotations**
    - In Roboflow, go to "Generate" → Split the dataset (~80% train, ~20% valid)
-   - Click "Export" → Select "YOLO v8" format → Download the zip file
-   - Right-click the downloaded zip → "Extract All..." → Select the folder where `train.py` is → Click "Extract"
-   - After extraction, the `train/` and `valid/` folders should appear next to `train.py`:
+   - Click "Export" → Select "YOLOv5 PyTorch" format → Download the zip file
+   - Right-click the downloaded zip → "Extract All..." → Select the folder where `yolov5n_train.py` is → Click "Extract"
+   - After extraction, the `train/` and `valid/` folders should appear next to `yolov5n_train.py`:
      ```
-     train.py
+     yolov5n_train.py
      requirements.txt
      train/
        images/
@@ -90,14 +100,14 @@ The `(venv)` prefix in the prompt indicates the environment is active.
 Ensure the virtual environment is activated, then:
 
 ```bash
-python train.py
+python yolov5n_train.py
 ```
 
 This will train for 100 epochs. When done, YOLO will create a `runs/` folder in the project folder. The trained model will be deeply nested (this is YOLO's default structure, not our choice):
 
 ```
 project-folder/
-├── train.py
+├── yolov5n_train.py
 ├── requirements.txt
 ├── train/
 │   ├── images/
@@ -146,8 +156,8 @@ sudo apt update
 sudo apt install -y python3.10 python3.10-venv python3.10-dev
 
 # Create virtual environment with Python 3.10
-python3.10 -m venv .venv
-source .venv/bin/activate
+python3.10 -m venv venv_compiler
+source venv_compiler/bin/activate
 
 # Verify Python version (should show 3.10.x)
 python --version
@@ -161,7 +171,7 @@ pip install -r requirements_compiling.txt
 
 **To reactivate the compilation environment later:**
 ```bash
-source .venv/bin/activate
+source venv_compiler/bin/activate
 ```
 
 ### Verify installation
@@ -189,7 +199,7 @@ This randomly selects 64 images from your training set for calibration.
 Convert the ONNX model to Hailo Archive (HAR) format:
 
 ```bash
-source .venv/bin/activate
+source venv_compiler/bin/activate
 hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Sigmoid" "/model.23/Concat""
 ```
 
@@ -200,7 +210,7 @@ This creates `best.har` in the project folder.
 Run the optimization and compilation script:
 
 ```bash
-source .venv/bin/activate
+source venv_compiler/bin/activate
 python finalize.py
 ```
 
@@ -217,7 +227,7 @@ This script:
 To run both compilation steps in sequence:
 
 ```bash
-source .venv/bin/activate
+source venv_compiler/bin/activate
 hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Concat" "/model.23/Sigmoid" && python finalize.py
 ```
 
@@ -242,7 +252,7 @@ hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-pat
    sudo reboot
    ```
 
-2. **On the Linux PC or WSL** - Copy files from the project folder where `train.py` is located.
+2. **On the Linux PC or WSL** - Copy files from the project folder where `yolov5n_train.py` is located.
    
    Replace `<username>` with the Pi username and `<hostname>` with the Pi's IP address or hostname (e.g., `username@pi.local`).
    

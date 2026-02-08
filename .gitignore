@@ -7,6 +7,7 @@ __pycache__/
 venv/
 .venv/
 venv_ssd_mobilenet/
+venv_*/
 env/
 ENV/
 
@@ -15,6 +16,7 @@ train/
 valid/
 test/
 runs/
+training_output/
 dataset.yaml
 
 # Model files
