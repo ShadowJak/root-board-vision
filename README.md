@@ -194,18 +194,7 @@ mkdir -p calib_images && find train/images -type f | shuf -n 64 | xargs -I {} cp
 
 This randomly selects 64 images from your training set for calibration.
 
-#### Step 4b: Parse ONNX to HAR (2 minutes)
-
-Convert the ONNX model to Hailo Archive (HAR) format:
-
-```bash
-source venv_compiler/bin/activate
-hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-path best.har --end-node-names "/model.23/Sigmoid" "/model.23/Concat""
-```
-
-This creates `best.har` in the project folder.
-
-#### Step 4c: Optimize and Compile to HEF (15-60 minutes)
+#### Step 4b: Optimize and Compile to HEF (15-60 minutes)
 
 Run the optimization and compilation script:
 

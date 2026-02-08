@@ -8,7 +8,7 @@ def run_finalize():
     # SETTINGS - Adjust these to match your setup
     onnx_path = 'runs/train/root_yolov5n_128ch_1280_/weights/best.onnx'
     har_path = 'best.har'
-    hw_arch = 'hailo8l'  # Use 'hailo8l' for Raspberry Pi AI Kit
+    hw_arch = 'hailo8'
     resolution = 1280
     date_str = datetime.datetime.now().strftime('%Y%m%d')
     output_hef = f'best_{resolution}_{date_str}.hef'
@@ -16,24 +16,20 @@ def run_finalize():
     # 1. Initialize Runner
     runner = ClientRunner(hw_arch=hw_arch)
 
-    # 2. Generate HAR if missing
-    if not os.path.exists(har_path):
-        print(f"Translating {onnx_path} to HAR at 1280px...")
-        runner.translate_onnx_model(
-            onnx_path,
-            'root_board_model',
-            net_input_shapes={'images': [1, 3, 1280, 1280]},
-            # Add these end node names to skip the unsupported Detect head
-            end_node_names=[
-                '/model.24/Sigmoid', 
-                '/model.24/Sigmoid_1', 
-                '/model.24/Sigmoid_2'
-            ]
+    # 2. Generate HAR
+    print(f"Translating {onnx_path} to HAR at 1280px...")
+    runner.translate_onnx_model(
+        onnx_path,
+        'root_board_model',
+        net_input_shapes={'images': [1, 3, 1280, 1280]},
+        # Add these end node names to skip the unsupported Detect head
+        end_node_names=[
+            '/model.24/Sigmoid', 
+            '/model.24/Sigmoid_1', 
+            '/model.24/Sigmoid_2'
+        ]
         )
-        runner.save_har(har_path)
-    else:
-        print(f"Loading existing HAR: {har_path}")
-        runner.load_har(har_path)
+    runner.save_har(har_path)
 
     # 3. Prepare Calibration Data
     img_dir = 'calib_images'
