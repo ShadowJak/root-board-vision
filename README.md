@@ -231,6 +231,8 @@ hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-pat
 **Prerequisites:**
 - Raspberry Pi 5 with Raspberry Pi OS installed
 - Camera Module 3 connected
+- AI HAT+ installed
+- If Picamera2 and OpenCV are not included in hailo-all, install them with pip install picamera2 opencv-python.
 
 **Steps:**
 
@@ -246,7 +248,7 @@ hailo parser onnx runs/detect/train/weights/best.onnx --hw-arch hailo8 --har-pat
    Replace `<username>` with the Pi username and `<hostname>` with the Pi's IP address or hostname (e.g., `username@pi.local`).
    
    ```bash
-   scp hef_out/best.hef <username>@<hostname>:~/models/root_board_vision.hef
+   scp best_<res>_<date stamp>.hef <username>@<hostname>:~/models/root_board_vision.hef
    scp root_detect.py <username>@<hostname>:~/models/
    ```
 
