@@ -2,12 +2,16 @@ import os
 import numpy as np
 from PIL import Image
 from hailo_sdk_client import ClientRunner
+import datetime
 
 def run_finalize():
     # SETTINGS - Adjust these to match your setup
     onnx_path = 'runs/train/root_yolov5n_128ch_1280_/weights/best.onnx'
     har_path = 'best.har'
     hw_arch = 'hailo8l'  # Use 'hailo8l' for Raspberry Pi AI Kit
+    resolution = 1280
+    date_str = datetime.datetime.now().strftime('%Y%m%d')
+    output_hef = f'best_{resolution}_{date_str}.hef'
     
     # 1. Initialize Runner
     runner = ClientRunner(hw_arch=hw_arch)
@@ -33,7 +37,7 @@ def run_finalize():
 
     # 3. Prepare Calibration Data
     img_dir = 'calib_images'
-    image_files = [f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.png'))][:64]
+    image_files = [f for f in os.listdir(img_dir) if f.lower().endswith(('.jpg', '.png')) and not f.endswith(':Zone.Identifier')][:64]
     
     calib_dataset = np.zeros((len(image_files), 1280, 1280, 3), dtype=np.float32)
 
@@ -60,7 +64,6 @@ nms_postprocess(meta_arch=yolov5, engine=cpu)
     print("Compiling to HEF...")
     hef = runner.compile()
     
-    output_hef = 'best_1280.hef'
     with open(output_hef, 'wb') as f:
         f.write(hef)
     
